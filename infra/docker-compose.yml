@@ -22,6 +22,7 @@ services:
       - media:/app/media/
   frontend:
     container_name: foodgram-front
+    env_file: .env
     build: ../frontend
     command: cp -r /app/build/. /static/
     volumes:
@@ -29,6 +30,7 @@ services:
       - static:/static
   nginx:
     container_name: foodgram-proxy
+    env_file: .env
     image: nginx:1.25.4-alpine
     ports:
       - "80:80"

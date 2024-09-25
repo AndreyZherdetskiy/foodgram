@@ -5,17 +5,21 @@ from django.contrib.auth import password_validation
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 
-from api.constants import (AMOUNT_MIN_VALUE,
-                           COOKING_TIME_MIN_VALUE,
-                           PAGINATION_MAX_PAGE_SIZE,
-                           RECIPES_LIMIT_DEFAULT,
-                           RECIPES_LIMIT_MIN_VALUE)
-from recipes.models import (Favorite,
-                            Ingredient,
-                            Recipe,
-                            RecipeIngredient,
-                            ShoppingCart,
-                            Tag)
+from api.constants import (
+    AMOUNT_MIN_VALUE,
+    COOKING_TIME_MIN_VALUE,
+    PAGINATION_MAX_PAGE_SIZE,
+    RECIPES_LIMIT_DEFAULT,
+    RECIPES_LIMIT_MIN_VALUE
+)
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    Tag
+)
 from users.models import CustomUser, Subscription
 
 

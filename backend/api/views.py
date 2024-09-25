@@ -1,5 +1,6 @@
 
 from collections import defaultdict
+
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -12,17 +13,19 @@ from rest_framework.response import Response
 from api.constants import RECIPES_LIMIT_DEFAULT
 from api.paginators import CustomPageNumberPagination
 from api.permissions import IsAuthorOrReadOnly
-from api.serializers import (Base64ImageField,
-                             ChangePasswordSerializer,
-                             CustomUserSerializer,
-                             CustomUserCreateSerializer,
-                             FavoriteSerializer,
-                             IngredientSerializer,
-                             RecipeSerializer,
-                             RecipeCreateUpdateSerializer,
-                             ShoppingCartSerializer,
-                             SubscriptionSerializer,
-                             TagSerializer)
+from api.serializers import (
+    Base64ImageField,
+    ChangePasswordSerializer,
+    CustomUserCreateSerializer,
+    CustomUserSerializer,
+    FavoriteSerializer,
+    IngredientSerializer,
+    RecipeCreateUpdateSerializer,
+    RecipeSerializer,
+    ShoppingCartSerializer,
+    SubscriptionSerializer,
+    TagSerializer
+)
 from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
 from users.models import CustomUser, Subscription
 

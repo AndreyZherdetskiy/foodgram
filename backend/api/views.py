@@ -28,7 +28,7 @@ from users.models import CustomUser, Subscription
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Ingredient.objects.all()
+    queryset = Ingredient.objects.all().order_by('pub_date')
     serializer_class = IngredientSerializer
     permission_classes = (permissions.AllowAny,)
 
@@ -49,7 +49,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class TagViewSet(viewsets.ModelViewSet):
-    queryset = Tag.objects.all()
+    queryset = Tag.objects.all().order_by('pub_date')
     serializer_class = TagSerializer
 
     def list(self, request, *args, **kwargs):
@@ -262,7 +262,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all()
+    queryset = CustomUser.objects.all().order_by('pub_date')
     pagination_class = CustomPageNumberPagination
 
     def get_serializer_class(self):

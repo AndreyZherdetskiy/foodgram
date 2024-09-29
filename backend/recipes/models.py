@@ -1,17 +1,23 @@
 from django.db import models
 
+from api.constants import (
+    INGREDIENT_NAME_MAX_LENGTH,
+    INGREDIENT_UNIT_MAX_LENGTH,
+    RECIPE_MAX_LENGTH,
+    TAG_MAX_LENGTH
+)
 from users.models import CustomUser
 
 
 class Tag(models.Model):
     name = models.CharField(
-        max_length=32,
+        max_length=TAG_MAX_LENGTH,
         unique=True,
         verbose_name='Название',
         blank=False
     )
     slug = models.SlugField(
-        max_length=32,
+        max_length=TAG_MAX_LENGTH,
         unique=True,
         verbose_name='Slug',
         blank=False
@@ -35,12 +41,12 @@ class Tag(models.Model):
 
 class Ingredient(models.Model):
     name = models.CharField(
-        max_length=128,
+        max_length=INGREDIENT_NAME_MAX_LENGTH,
         verbose_name='Название',
         blank=False
     )
     measurement_unit = models.CharField(
-        max_length=64,
+        max_length=INGREDIENT_UNIT_MAX_LENGTH,
         verbose_name='Единица измерения',
         blank=False
     )
@@ -69,7 +75,7 @@ class Recipe(models.Model):
         verbose_name='Автор'
     )
     name = models.CharField(
-        max_length=256,
+        max_length=RECIPE_MAX_LENGTH,
         verbose_name='Название',
         blank=False
     )
@@ -133,7 +139,12 @@ class RecipeIngredient(models.Model):
     )
 
     class Meta:
-        unique_together = ('recipe', 'ingredient')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recipe', 'ingredient'],
+                name='unique_recipe_ingredient'
+            )
+        ]
         verbose_name = 'Ингредиент в рецепте'
         verbose_name_plural = 'Ингредиенты в рецепте'
 
@@ -154,7 +165,12 @@ class Favorite(models.Model):
     )
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_favorite'
+            )
+        ]
         verbose_name = 'Избранный рецепт'
         verbose_name_plural = 'Избранные рецепты'
 
@@ -172,6 +188,11 @@ class ShoppingCart(models.Model):
     )
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_shopping_cart'
+            )
+        ]
         verbose_name = 'Рецепт в корзине'
         verbose_name_plural = 'Рецепты в корзине'

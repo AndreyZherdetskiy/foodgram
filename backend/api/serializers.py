@@ -1,8 +1,5 @@
-import base64
-import re
-
 from django.contrib.auth import password_validation
-from django.core.files.base import ContentFile
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
 from api.constants import (
@@ -12,6 +9,7 @@ from api.constants import (
     RECIPES_LIMIT_DEFAULT,
     RECIPES_LIMIT_MIN_VALUE
 )
+from api.validators import validate_username
 from recipes.models import (
     Favorite,
     Ingredient,
@@ -23,23 +21,6 @@ from recipes.models import (
 from users.models import CustomUser, Subscription
 
 
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            try:
-                format, imgstr = data.split(';base64,')
-                ext = format.split('/')[-1]
-                data = ContentFile(
-                    base64.b64decode(imgstr),
-                    name=f'temp.{ext}'
-                )
-            except (ValueError, TypeError):
-                raise serializers.ValidationError(
-                    'Неверный формат изображения.'
-                )
-        return super().to_internal_value(data)
-
-
 class CustomUserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
@@ -47,12 +28,7 @@ class CustomUserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
     def validate_username(self, value):
-        if not re.match(r'^[\w.@+-]+$', value):
-            raise serializers.ValidationError(
-                'Имя пользователя может содержать только буквы, '
-                'цифры и символы . @ + - _'
-            )
-        return value
+        return validate_username(value)
 
     def create(self, validated_data):
         user = CustomUser(**validated_data)
@@ -92,10 +68,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return Subscription.objects.filter(
-                user=request.user,
-                author=obj
-            ).exists()
+            return request.user.subscriptions.filter(author=obj).exists()
         return False
 
 
@@ -142,16 +115,13 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
         return subscription
 
-    def get_is_subscribed(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return Subscription.objects.filter(
-                user=request.user,
-                author=obj.author
-            ).exists()
-        return False
-
     def to_representation(self, instance):
+        request = self.context.get('request')
+        user = (
+            request.user
+            if request and request.user.is_authenticated
+            else None
+        )
         recipes_limit = self.context.get('recipes_limit')
         if recipes_limit is not None:
             try:
@@ -165,7 +135,10 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'first_name': instance.author.first_name,
             'last_name': instance.author.last_name,
             'email': instance.author.email,
-            'is_subscribed': self.get_is_subscribed(instance),
+            'is_subscribed': Subscription.objects.filter(
+                user=user,
+                author=instance.author
+            ).exists() if user else False,
             'avatar': (
                 instance.author.avatar.url if instance.author.avatar else None
             ),
@@ -238,8 +211,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True,
         source='recipeingredient_set'
     )
-    is_favorited = serializers.SerializerMethodField()
-    is_in_shopping_cart = serializers.SerializerMethodField()
+    is_favorited = serializers.SerializerMethodField('get_is_favorited')
+    is_in_shopping_cart = serializers.SerializerMethodField(
+        'get_is_in_shopping_cart'
+    )
 
     class Meta:
         model = Recipe
@@ -370,6 +345,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 )
             unic_ids.add(ingredient_id)
         return ingredients
+
+    def validate_image(self, image):
+        if image is None or not image:
+            raise serializers.ValidationError(
+                'Это поле не может быть пустым.'
+            )
+        return image
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients', [])

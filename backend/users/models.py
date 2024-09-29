@@ -1,20 +1,22 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from api.constants import CUSTOMUSER_MAX_LENGTH
+
 
 class CustomUser(AbstractUser):
     first_name = models.CharField(
-        max_length=150,
+        max_length=CUSTOMUSER_MAX_LENGTH,
         verbose_name='Имя',
         blank=False
     )
     last_name = models.CharField(
-        max_length=150,
+        max_length=CUSTOMUSER_MAX_LENGTH,
         verbose_name='Фамилия',
         blank=False
     )
     username = models.CharField(
-        max_length=150,
+        max_length=CUSTOMUSER_MAX_LENGTH,
         unique=True,
         blank=False
     )
@@ -69,7 +71,12 @@ class Subscription(models.Model):
     )
 
     class Meta:
-        unique_together = ('user', 'author')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique_subscription'
+            )
+        ]
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
 

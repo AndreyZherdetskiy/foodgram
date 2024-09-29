@@ -1,20 +1,20 @@
-
+import hashlib
 from collections import defaultdict
 
-from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 
-from api.constants import RECIPES_LIMIT_DEFAULT
+from api.constants import RECIPES_LIMIT_DEFAULT, UNIQUE_ID_LENGTH
+from api.filters import RecipeFilter
 from api.paginators import CustomPageNumberPagination
-from api.permissions import IsAuthorOrReadOnly
+from api.permissions import IsAdminUserOrReadOnly, IsAuthorOrReadOnly
 from api.serializers import (
-    Base64ImageField,
     ChangePasswordSerializer,
     CustomUserCreateSerializer,
     CustomUserSerializer,
@@ -54,33 +54,19 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all().order_by('pub_date')
     serializer_class = TagSerializer
+    permission_classes = (IsAdminUserOrReadOnly,)
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def create(self, request, *args, **kwargs):
-        if not request.user.is_staff:
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        return super().create(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        if not request.user.is_staff:
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        if not request.user.is_staff:
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        return super().destroy(request, *args, **kwargs)
-
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-pub_date')
     pagination_class = CustomPageNumberPagination
-    filter_backends = (SearchFilter, DjangoFilterBackend)
-    filterset_fields = ('author', 'tags__slug')
+    filter_backends = (DjangoFilterBackend, SearchFilter)
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -115,27 +101,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        author_id = self.request.query_params.get('author')
-        if author_id is not None:
-            queryset = queryset.filter(author_id=author_id)
-
-        tags = self.request.query_params.getlist('tags')
-        if tags:
-            queryset = queryset.filter(Q(tags__slug__in=tags)).distinct()
-
-        is_favorited = self.request.query_params.get('is_favorited')
-        if is_favorited == '1' and self.request.user.is_authenticated:
-            queryset = queryset.filter(favorited_by__user=self.request.user)
-
-        is_in_shopping_cart = self.request.query_params.get(
-            'is_in_shopping_cart')
-        if is_in_shopping_cart == '1' and self.request.user.is_authenticated:
-            queryset = queryset.filter(in_cart_by__user=self.request.user)
-
-        return queryset
-
     def list(self, request):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -154,8 +119,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def get_link(self, request, pk=None):
         recipe = get_object_or_404(Recipe, pk=pk)
+
+        unique_string = f'{recipe.id}-{recipe.pub_date.isoformat()}'
+        unique_id = hashlib.md5(
+            unique_string.encode()
+        ).hexdigest()[:UNIQUE_ID_LENGTH]
+
         domain = request.build_absolute_uri('/')[:-1]
-        link = f'{domain}/recipes/s/{recipe.id}/'
+        link = f'{domain}/recipes/s/{unique_id}/'
+
         return Response({'short-link': link}, status=status.HTTP_200_OK)
 
     @action(

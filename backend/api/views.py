@@ -7,11 +7,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 
 from api.constants import RECIPES_LIMIT_DEFAULT, UNIQUE_ID_LENGTH
-from api.filters import RecipeFilter
+# from api.filters import RecipeFilter
 from api.paginators import CustomPageNumberPagination
 from api.permissions import IsAdminUserOrReadOnly, IsAuthorOrReadOnly
 from api.serializers import (
@@ -65,8 +64,8 @@ class TagViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-pub_date')
     pagination_class = CustomPageNumberPagination
-    filter_backends = (DjangoFilterBackend, SearchFilter)
-    filterset_class = RecipeFilter
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('author', 'tags__slug')
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -281,12 +280,6 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         user = get_object_or_404(CustomUser, pk=request.user.pk)
 
         if request.method == 'PUT':
-            if 'avatar' not in request.data:
-                return Response(
-                    {'detail': 'Поле `avatar` обязательно.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             avatar_serializer = CustomUserSerializer(
                 instance=user,
                 data=request.data,

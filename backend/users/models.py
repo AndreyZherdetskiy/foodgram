@@ -49,6 +49,7 @@ class CustomUser(AbstractUser):
     )
 
     class Meta:
+        ordering = ('pub_date',)
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 

@@ -1,6 +1,7 @@
 import hashlib
 from collections import defaultdict
 
+from django.db.models import Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -10,7 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api.constants import RECIPES_LIMIT_DEFAULT, UNIQUE_ID_LENGTH
-# from api.filters import RecipeFilter
+from api.filters import RecipeFilter
 from api.paginators import CustomPageNumberPagination
 from api.permissions import IsAdminUserOrReadOnly, IsAuthorOrReadOnly
 from api.serializers import (
@@ -30,7 +31,7 @@ from users.models import CustomUser, Subscription
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Ingredient.objects.all().order_by('pub_date')
+    queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     permission_classes = (permissions.AllowAny,)
 
@@ -51,7 +52,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class TagViewSet(viewsets.ModelViewSet):
-    queryset = Tag.objects.all().order_by('pub_date')
+    queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = (IsAdminUserOrReadOnly,)
 
@@ -62,10 +63,27 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all().order_by('-pub_date')
+    queryset = Recipe.objects.all()
     pagination_class = CustomPageNumberPagination
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('author', 'tags__slug')
+    filterset_class = RecipeFilter
+
+    def get_queryset(self):
+        queryset = Recipe.objects.all()
+
+        if self.request.user.is_authenticated:
+            queryset = queryset.annotate(
+                is_favorited=Exists(Favorite.objects.filter(
+                    user=self.request.user,
+                    recipe=OuterRef('id')
+                )),
+                is_in_shopping_cart=Exists(ShoppingCart.objects.filter(
+                    user=self.request.user,
+                    recipe=OuterRef('id')
+                ))
+            )
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -236,7 +254,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 class CustomUserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all().order_by('pub_date')
+    queryset = CustomUser.objects.all()
     pagination_class = CustomPageNumberPagination
 
     def get_serializer_class(self):

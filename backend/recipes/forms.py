@@ -14,12 +14,11 @@ class RecipeForm(forms.ModelForm):
             'text',
             'cooking_time',
             'tags',
-            'ingredients'
         )
 
     def clean_cooking_time(self):
         """Валидация времени приготовления."""
-        cooking_time = self.cleaned_data['cooking_time']
+        cooking_time = self.cleaned_data.get('cooking_time')
         if cooking_time < COOKING_TIME_MIN_VALUE:
             raise forms.ValidationError(
                 'Время приготовления должно быть больше 0'
@@ -28,7 +27,7 @@ class RecipeForm(forms.ModelForm):
 
     def clean_tags(self):
         """Валидация тегов."""
-        tags = self.cleaned_data['tags']
+        tags = self.cleaned_data.get('tags')
         if not tags:
             raise forms.ValidationError(
                 'Необходимо отметить минимум один тег.'
@@ -41,12 +40,24 @@ class RecipeForm(forms.ModelForm):
 
     def clean_image(self):
         """Валидация изображения."""
-        image = self.cleaned_data['image']
+        image = self.cleaned_data.get('image')
         if image is None or not image:
             raise forms.ValidationError(
                 'Это поле не может быть пустым.'
             )
         return image
+
+    def clean(self):
+        """Общая валидация формы."""
+        cleaned_data = super().clean()
+
+        ingredients = self.data.get('recipeingredient_set-0-ingredient')
+        if not ingredients or ingredients == '':
+            raise forms.ValidationError(
+                'Необходимо добавить хотя бы один ингредиент.'
+            )
+
+        return cleaned_data
 
 
 class IngredientInlineForm(forms.ModelForm):
@@ -94,8 +105,11 @@ class IngredientInlineForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
         if not cleaned_data.get('ingredient'):
             raise forms.ValidationError('Это поле обязательно для заполнения.')
+
         if not cleaned_data.get('amount'):
             raise forms.ValidationError('Это поле обязательно для заполнения.')
+
         return cleaned_data

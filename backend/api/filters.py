@@ -6,18 +6,27 @@ from recipes.models import Recipe
 class RecipeFilter(filters.FilterSet):
     tags = filters.AllValuesMultipleFilter(
         field_name='tags__slug',
-        lookup_expr='in',
         label='Tags'
     )
     is_favorited = filters.BooleanFilter(
-        field_name='is_favorited',
+        method='filter_is_favorited',
         label='Favorited'
-    )
+        )
     is_in_shopping_cart = filters.BooleanFilter(
-        field_name='is_in_shopping_cart',
+        method='filter_is_in_shopping_cart',
         label='In shopping cart'
     )
 
     class Meta:
         model = Recipe
-        fields = ('tags', 'is_favorited', 'is_in_shopping_cart')
+        fields = ['author', 'tags', 'is_favorited', 'is_in_shopping_cart']
+
+    def filter_is_favorited(self, queryset, name, value):
+        if value and self.request.user.is_authenticated:
+            return queryset.filter(favorited_by__user=self.request.user)
+        return queryset
+
+    def filter_is_in_shopping_cart(self, queryset, name, value):
+        if value and self.request.user.is_authenticated:
+            return queryset.filter(in_cart_by__user=self.request.user)
+        return queryset

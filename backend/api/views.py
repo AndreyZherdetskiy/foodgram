@@ -1,7 +1,6 @@
 import hashlib
 from collections import defaultdict
 
-from django.db.models import Exists, OuterRef
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -68,23 +67,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
 
-    def get_queryset(self):
-        queryset = Recipe.objects.all()
-
-        if self.request.user.is_authenticated:
-            queryset = queryset.annotate(
-                is_favorited=Exists(Favorite.objects.filter(
-                    user=self.request.user,
-                    recipe=OuterRef('id')
-                )),
-                is_in_shopping_cart=Exists(ShoppingCart.objects.filter(
-                    user=self.request.user,
-                    recipe=OuterRef('id')
-                ))
-            )
-
-        return queryset
-
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return RecipeCreateUpdateSerializer
@@ -116,16 +98,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response(serializer.data)
-
-    def list(self, request):
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(
